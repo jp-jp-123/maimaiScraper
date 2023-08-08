@@ -1,4 +1,5 @@
 import os.path
+import time
 
 from bs4 import BeautifulSoup as BSoup
 from webdriver import OpenChromeDefaultProfile as OpenChrome
@@ -6,7 +7,6 @@ import os
 import constants
 import requests
 
-# TODO: FINALLY MAKE THE SCRAPER
 # TODO: MAKE A SECOND VERSION WHERE USER DOESNT HAVE TO CLOSE ALL CHROME WINDOWS TO RUN SUCCESSFULLY
 
 
@@ -73,12 +73,16 @@ class MaiAlbumScraper:
     def DownloadPhoto(self):
         image_path = self.MakePhotoDirectory('maiAlbum')
 
+        headers = {'User-Agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Mobile Safari/537.36'}
+
         for photo_url, info in self.photo_info.items():
             url = photo_url
             filepath = os.path.join(image_path, info + '.jpeg')
 
             print(url)
-            image = requests.get(url)
+            image = requests.get(url, headers=headers)
+
+            self.driver.implicitly_wait(3)
 
             if image.status_code == 200:
                 '''with open(filepath, 'wb') as file_write:
@@ -87,10 +91,37 @@ class MaiAlbumScraper:
 
                 for chunk in image.iter_content(100000):
                     imagefile.write(chunk)
+
             else:
                 print('Error')
 
         self.driver.quit()
+
+        # This keeps downloading 0 bytes of image which i assume because the website denies the request
+        # I observed that if you open the links without the maimai website open, it just gives you white screen
+        # however when you open your maimai website and refresh the white screen, it will give you the image
+        # or if you open the image links while the website is open, it will work
+        # in bs4's case, even though website is open it still gives the white screen, is what i assume what happens
+        # idk how to resolve this
+        # tl;dr: maimai might be not acknowledging the request and just gives me a blank file
+
+    def DownloadPhotoSelenium(self):
+        image_path = self.MakePhotoDirectory('maiAlbum')
+
+        for photo_url, info in self.photo_info.items():
+            url = photo_url
+            filepath = os.path.join(image_path, info + '.jpeg')
+
+            self.driver.get(url)
+            time.sleep(3)
+            self.driver.save_screenshot(filepath)
+
+            print('downloads: ', filepath)
+
+        # less elegant solution(?, janky even)
+        # it keeps the user session alive and then opens the links manually
+        # then takes screenshots
+        # has black bars, but is working
 
     def MakePhotoDirectory(self, folder_name):
         root_folder = os.path.expanduser('~')
@@ -104,7 +135,7 @@ class MaiAlbumScraper:
         self.TakePageSource()
         self.SearchPhotoInstances()
         self.ExtractPhotoInfo()
-        self.DownloadPhoto()
+        self.DownloadPhotoSelenium()
 
 
 if __name__ == '__main__':
