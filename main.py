@@ -1,6 +1,8 @@
+import os.path
+
 from bs4 import BeautifulSoup as BSoup
 from webdriver import OpenChromeDefaultProfile as OpenChrome
-from os.path import basename
+import os
 import constants
 import requests
 
@@ -57,6 +59,8 @@ class MaiAlbumScraper:
 
             if self.datetime_included:
                 self.datetime = photo.find('div', class_='block_info p_3 f_11 white').text
+                self.datetime = self.datetime.replace('/', '')
+                self.datetime = self.datetime.replace(':', '')
 
             self.photo_url = photo.find('img', class_='w_430')
             self.photo_url = self.photo_url.attrs['src']
@@ -64,20 +68,37 @@ class MaiAlbumScraper:
             all_info = (self.song_title, self.chart_type, self.difficulty, self.datetime)
             all_info = '-'.join(all_info)
 
-            # print(self.song_title, self.chart_type, self.difficulty, self.datetime, sep='-')
-            # print('File', self.photo_url, sep='-')
-
             self.photo_info[self.photo_url] = all_info
 
     def DownloadPhoto(self):
+        image_path = self.MakePhotoDirectory('maiAlbum')
+
         for photo_url, info in self.photo_info.items():
             url = photo_url
-            filename = info
+            filepath = os.path.join(image_path, info + '.jpeg')
 
-            image = requests.get(url).content
+            print(url)
+            image = requests.get(url)
 
-            with open(basename(filename), 'wb') as file_write:
-                file_write.write(image)
+            if image.status_code == 200:
+                '''with open(filepath, 'wb') as file_write:
+                    file_write.write(image.content)'''
+                imagefile = open(filepath, 'wb')
+
+                for chunk in image.iter_content(100000):
+                    imagefile.write(chunk)
+            else:
+                print('Error')
+
+        self.driver.quit()
+
+    def MakePhotoDirectory(self, folder_name):
+        root_folder = os.path.expanduser('~')
+        pictures_folder = os.path.join(root_folder, 'Pictures', folder_name)
+
+        os.makedirs(pictures_folder, exist_ok=True)
+
+        return pictures_folder
 
     def Run(self):
         self.TakePageSource()
