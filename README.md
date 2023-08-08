@@ -1,0 +1,2 @@
+# maimaiAlbumScraper
+ scrapes maimai album
